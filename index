@@ -4,15 +4,112 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visualização de Excel - Power BI</title>
-    <script src="xlsx.full.min.js"></script>
-    <script src="chart.min.js"></script>
-    <script src="script.js" defer></script>
-    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+
+        table {
+            margin: 20px auto;
+            border-collapse: collapse;
+            width: 80%;
+        }
+
+        table, th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+
+        th {
+            background-color: #f4f4f4;
+            font-weight: bold;
+        }
+
+        canvas {
+            max-width: 600px;
+            margin: 20px auto;
+        }
+    </style>
 </head>
 <body>
     <h1>Visualização de Excel</h1>
     <input type="file" id="fileInput" accept=".xlsx, .xls">
     <div id="tableContainer"></div>
     <canvas id="chartContainer"></canvas>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[sheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                    displayTable(jsonData);
+                    createChart(jsonData);
+                };
+                reader.readAsArrayBuffer(file);
+            }
+        }
+
+        function displayTable(data) {
+            const tableContainer = document.getElementById('tableContainer');
+            tableContainer.innerHTML = '';
+
+            const table = document.createElement('table');
+            data.forEach((row, index) => {
+                const tr = document.createElement('tr');
+                row.forEach(cell => {
+                    const cellElement = document.createElement(index === 0 ? 'th' : 'td');
+                    cellElement.textContent = cell;
+                    tr.appendChild(cellElement);
+                });
+                table.appendChild(tr);
+            });
+
+            tableContainer.appendChild(table);
+        }
+
+        function createChart(data) {
+            const labels = data.slice(1).map(row => row[1]); // "Cliente Completo" como rótulos
+            const statusData = data.slice(1).map(row => row[3]); // "Status" como dados
+
+            const counts = statusData.reduce((acc, status) => {
+                acc[status] = (acc[status] || 0) + 1;
+                return acc;
+            }, {});
+
+            const chartData = {
+                labels: Object.keys(counts),
+                datasets: [{
+                    label: 'Status',
+                    data: Object.values(counts),
+                    backgroundColor: ['#4CAF50', '#FF6384', '#36A2EB', '#FFCE56']
+                }]
+            };
+
+            const chartContainer = document.getElementById('chartContainer').getContext('2d');
+            new Chart(chartContainer, {
+                type: 'pie',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        }
+                    }
+                }
+            });
+        }
+    </script>
 </body>
 </html>
